@@ -1,32 +1,33 @@
-'use strict';
+'use strict'
 
-var rp = require('request-promise');
-var createObj = require(__dirname + '/../resources/callbacks.js');
-var checkErrors = require(__dirname + '/../resources/errorHandling.js');
-var parseJSON = require(__dirname + '/../resources/htmlParser.js').parseJSON;
-var groupKeywords = require(__dirname + '/../resources/trendDataHelper.js').groupKeywords;
-var reduceArrayDimensions = require(__dirname + '/../resources/trendDataHelper.js').reduceArrayDimensions;
+var rp = require('request-promise')
+var createObj = require(__dirname + '/../resources/callbacks.js')
+var checkErrors = require(__dirname + '/../resources/errorHandling.js')
+var parseJSON = require(__dirname + '/../resources/htmlParser.js').parseJSON
+var groupKeywords = require(__dirname + '/../resources/trendDataHelper.js').groupKeywords
+var reduceArrayDimensions = require(__dirname + '/../resources/trendDataHelper.js').reduceArrayDimensions
 
-module.exports = function request(keywords, timePeriod, cbFunc){
-	var obj = createObj(arguments, request);
+module.exports = function request (keywords, timePeriod, cbFunc) {
+  var obj = createObj(arguments, request)
 
-	var error = checkErrors(obj);
-	if(error instanceof Error) return Promise.reject(obj.cbFunc(error));
+  var error = checkErrors(obj)
+  if (error instanceof Error) return Promise.reject(obj.cbFunc(error))
 
-	return Promise.all(promiseArr(obj.keywords, obj.timePeriod))
-	.then(function(results){
-		return obj.cbFunc(null, reduceArrayDimensions(results));
-	})
-	.catch(function(err){
-		return Promise.reject(obj.cbFunc(err));
-	});
-};
-
-function promiseArr(keywords, timePeriod){
-	return groupKeywords(keywords).map(function(keyword, index, arr){
-		return rp(`http://www.google.com/trends/fetchComponent?q=${keyword}&cid=TIMESERIES_GRAPH_0&export=3&${timePeriod}`)
-		.then(function(htmlString){
-			return parseJSON(htmlString, arr[index].split(','));
-		});
-	});
+  return Promise.all(promiseArr(obj.keywords, obj.timePeriod, obj.loc)).then(function (results) {
+    return obj.cbFunc(null, reduceArrayDimensions(results))
+  }).catch(function (err) {
+    return Promise.reject(obj.cbFunc(err))
+  })
+}
+// http://www.google.com/trends/fetchComponent?q=zika&cid=TIMESERIES_GRAPH_0&export=3&
+function promiseArr (keywords, timePeriod, loc) {
+  return groupKeywords(keywords).map(function (keyword, index, arr) {
+    var url = 'http://www.google.com/trends/fetchComponent?q=' + keyword + '&cid=TIMESERIES_GRAPH_0&export=3'
+    url += timePeriod ? '&' + timePeriod : ''
+    url += loc ? '&geo=' + loc : ''
+    console.log(url)
+    return rp(url).then(function (htmlString) {
+      return parseJSON(htmlString, arr[index].split(','))
+    })
+  })
 }
